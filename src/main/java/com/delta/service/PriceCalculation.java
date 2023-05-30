@@ -5,7 +5,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
 import com.delta.entity.Product;
+import com.delta.exception.ProductNotFoundException;
 import com.delta.model.Item;
 import com.delta.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,8 +18,6 @@ public class PriceCalculation {
 
     @Autowired
     OfferCalculation offerCalculation;
-    @Autowired
-    ProductRepository repository;
 
 
     /**
@@ -28,9 +28,9 @@ public class PriceCalculation {
      * @param listOfItems
      * @return
      */
-    public String totalCostOfShopping(String[] listOfItems) {
+    public String totalCostOfShopping(List<String> listOfItems, Map<String, Product> productMap) {
         Map<String, Item> itemList = new HashMap<>();
-        Arrays.stream(listOfItems).forEach(item -> mapProduct(itemList, item, repository.findAll()));
+        listOfItems.forEach(item -> mapProduct(itemList, item, productMap));
         int totalCostInPenny = itemList.entrySet().stream().map(Entry::getValue).map(Item::getPrice).reduce(0, Integer::sum);
         return totalCost(totalCostInPenny);
     }
@@ -54,16 +54,21 @@ public class PriceCalculation {
      *
      * @param itemList
      * @param itemName
-     * @param products
+     * @param productMap
      */
-    private void mapProduct(Map<String, Item> itemList, String itemName, List<Product> products) {
+    private void mapProduct(Map<String, Item> itemList, String itemName, Map<String, Product> productMap) throws ProductNotFoundException {
         Item item;
         int quantity = 0;
         if (itemList.containsKey(itemName)) {
             item = itemList.get(itemName);
             quantity = item.getQuantity();
         } else {
-            Product product = products.stream().filter(prd -> prd.getItemName().equalsIgnoreCase(itemName)).findFirst().orElseThrow();
+            Product product = null;
+            if (productMap.containsKey(itemName)) {
+                product = productMap.get(itemName);
+            } else {
+                throw new ProductNotFoundException(itemName.toUpperCase() + " Product listed in shopping bags is not found.");
+            }
             item = ItemMapper.mapItem(product);
 
         }
